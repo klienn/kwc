@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "801379391722",
+    "project_id": "kwc-register-7c3e1",
+    "storage_bucket": "kwc-register-7c3e1.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:801379391722:android:7209458576887988b39f93",
+        "android_client_info": {
+          "package_name": "com.example.kwc_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "801379391722-ml8hvcp2vae3g61r0386c3i6sr5lt1e2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.kwc_app",
+            "certificate_hash": "583f6c4f8d428cb01d2eb66d81108e92016c4aad"
+          }
+        },
+        {
+          "client_id": "801379391722-d5r5glmbii90q9kjbagviut2jb2rmegf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD7aoCF1RaeP-7DjR63AcGXt036g-XQ-Eo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "801379391722-d5r5glmbii90q9kjbagviut2jb2rmegf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
