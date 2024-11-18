@@ -21,7 +21,7 @@ class XenditService {
       'Authorization': 'Basic ${base64Encode(utf8.encode('$secretKey:'))}',
       'Content-Type': 'application/json',
       'X-Callback-URL':
-          'https://96ce-143-44-193-189.ngrok-free.app/xendit/webhook' // Add callback URL in headers
+          'https://earwig-proven-vertically.ngrok-free.app/xendit/webhook' // Add callback URL in headers
     };
 
     final body = jsonEncode({
@@ -32,9 +32,9 @@ class XenditService {
       "channel_code": "PH_GCASH",
       "channel_properties": {
         "success_redirect_url":
-            "https://96ce-143-44-193-189.ngrok-free.app/payment-success",
+            "https://earwig-proven-vertically.ngrok-free.app/payment-success",
         "failure_redirect_url":
-            "https://96ce-143-44-193-189.ngrok-free.app/payment-failure"
+            "https://earwig-proven-vertically.ngrok-free.app/payment-failure"
       },
       "metadata": {"userId": user?.uid}
     });
