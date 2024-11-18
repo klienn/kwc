@@ -37,13 +37,13 @@ const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
 
           console.log(`Payment for ${reference_id} is now ${status}. Amount: ${capture_amount}`);
     
-          if (reference_id === 'test-payload'){
+          if (reference_id === 'test-payload') {
             res.status(200).send('Webhook received');
-            }
+          }
           if (status === 'SUCCEEDED') {
             const userId = metadata.userId;
-           // Convert amount to a number to ensure it's a valid input for increment
-           const amountNumber = parseFloat(capture_amount) / 100;
+            // Convert amount to a number to ensure it's a valid input for increment
+            const amountNumber = parseFloat(capture_amount) / 100;
 
             console.log(`Payment ${reference_id} completed successfully. Adding ${amountNumber} to user ${userId}`);
  
@@ -65,7 +65,32 @@ const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
               })
             }, { merge: true });
 
+            // Add a new message for successful transaction
+            await userRef.collection('messages').add({
+              title: 'Payment Successful',
+              referenceId: reference_id,
+              message: `Your payment of ₱${amountNumber} was successful.`,
+              read: false,
+              timestamp: new Date().toISOString()
+            });
+
             console.log(`User ${userId} balance updated successfully.`);
+          } else if (status === 'FAILED') {
+            const userId = metadata.userId;
+
+            // Reference to the user's document in Firestore
+            const userRef = admin.firestore().collection('users').doc(userId);
+
+            // Add a new message for failed transaction
+            await userRef.collection('messages').add({
+              title: 'Payment Failed',
+              referenceId: reference_id,
+              message: `Your payment of ₱${parseFloat(capture_amount) / 100} has failed. Please try again.`,
+              read: false,
+              timestamp: new Date().toISOString()
+            });
+
+            console.log(`User ${userId} has been notified of the failed payment.`);
           }
         }
 
