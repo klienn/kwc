@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kwc_app/screens/home/admin_home.dart';
 import 'package:kwc_app/screens/home/home.dart';
 import 'package:kwc_app/screens/logout/logout.dart';
 import 'package:kwc_app/screens/notification/notification.dart';
@@ -13,6 +14,7 @@ enum NavigationEvents {
   notificationClickedEvent,
   settingsClickedEvent,
   logoutClickedEvent,
+  adminDashboardClickedEvent,
 }
 
 abstract class NavigationStates {}
@@ -23,6 +25,9 @@ class NavigationBloc extends Bloc<NavigationEvents, NavigationStates> {
     // Registering the event handlers
     on<NavigationEvents>((event, emit) {
       switch (event) {
+        case NavigationEvents.adminDashboardClickedEvent:
+          emit(AdminHome()); // Emit the Logout widget directly
+          break;
         case NavigationEvents.profilePageClickedEvent:
           emit(Profile()); // Emit the Profile widget directly
           break;

@@ -4,6 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kwc_app/bloc.navigation_bloc/navigation_bloc.dart';
 import 'package:kwc_app/sidebar/menu_item.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:provider/provider.dart';
+import 'package:kwc_app/models/user.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SideBar extends StatefulWidget {
   @override
@@ -18,6 +21,8 @@ class _SideBarState extends State<SideBar>
   late StreamSink<bool> isSideBarOpenedSink;
   final _animationDuration = const Duration(milliseconds: 500);
 
+  String? userRole;
+
   @override
   void initState() {
     super.initState();
@@ -26,6 +31,31 @@ class _SideBarState extends State<SideBar>
     isSideBarOpenedStreamController = PublishSubject<bool>();
     isSideBarOpenedStream = isSideBarOpenedStreamController.stream;
     isSideBarOpenedSink = isSideBarOpenedStreamController.sink;
+
+    // Fetch user role on initialization
+    fetchUserRole();
+  }
+
+  Future<void> fetchUserRole() async {
+    final user = Provider.of<Users?>(context, listen: false);
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (doc.exists) {
+        setState(() {
+          userRole = doc.data()?['role'] ?? 'user';
+        });
+
+        if (userRole == 'admin') {
+          // Automatically navigate to Admin Dashboard for admins
+          BlocProvider.of<NavigationBloc>(context)
+              .add(NavigationEvents.adminDashboardClickedEvent);
+        }
+      }
+    }
   }
 
   @override
@@ -52,6 +82,7 @@ class _SideBarState extends State<SideBar>
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+
     return StreamBuilder<bool>(
       initialData: false,
       stream: isSideBarOpenedStream,
@@ -71,9 +102,7 @@ class _SideBarState extends State<SideBar>
                   color: const Color(0xffF98866),
                   child: Column(
                     children: <Widget>[
-                      SizedBox(
-                        height: 100,
-                      ),
+                      SizedBox(height: 100),
                       ListTile(
                         title: Text(
                           "Pol123",
@@ -104,23 +133,26 @@ class _SideBarState extends State<SideBar>
                         indent: 32,
                         endIndent: 32,
                       ),
-                      MenuItem(
-                        icon: Icons.person,
-                        title: "Profile",
-                        onTap: () {
-                          onIconPressed();
-                          BlocProvider.of<NavigationBloc>(context)
-                              .add(NavigationEvents.profilePageClickedEvent);
-                        },
-                      ),
-                      MenuItem(
-                          icon: Icons.home,
-                          title: "Home",
-                          onTap: () {
-                            onIconPressed();
-                            BlocProvider.of<NavigationBloc>(context)
-                                .add(NavigationEvents.homePageClickedEvent);
-                          }),
+                      userRole == 'admin'
+                          ? MenuItem(
+                              icon: Icons.dashboard,
+                              title: "Admin Dashboard",
+                              onTap: () {
+                                onIconPressed();
+                                BlocProvider.of<NavigationBloc>(context).add(
+                                    NavigationEvents
+                                        .adminDashboardClickedEvent);
+                              },
+                            )
+                          : MenuItem(
+                              icon: Icons.home,
+                              title: "Home",
+                              onTap: () {
+                                onIconPressed();
+                                BlocProvider.of<NavigationBloc>(context)
+                                    .add(NavigationEvents.homePageClickedEvent);
+                              },
+                            ),
                       MenuItem(
                           icon: Icons.payment,
                           title: "Payment",

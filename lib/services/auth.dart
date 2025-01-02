@@ -50,10 +50,21 @@ class AuthService {
     try {
       UserCredential result = await auth.createUserWithEmailAndPassword(
           email: email, password: password);
-      User? u = result.user;
-      return _userFromFirebaseUser(u);
+      User? user = result.user;
+
+      if (user != null) {
+        // Create Firestore document for the user
+        await firestore.collection('users').doc(user.uid).set({
+          'balance': 0,
+          'role': 'user',
+          'transactions': [],
+        });
+
+        return _userFromFirebaseUser(user);
+      }
+      return null;
     } catch (e) {
-      print(e.toString());
+      print("Error registering user: $e");
       return null;
     }
   }
