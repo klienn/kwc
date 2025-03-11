@@ -1,138 +1,125 @@
-#include "Arduino.h"
+#include <Arduino.h>
 #include <ModbusRTU.h>
 
-#define SLAVE_ID 1
-#define FIRST_REG 0x2006  //  starting address of Holding register to read
-#define REG_COUNT 28      // number of registers to read
+#define SLAVE_ID 11
+#define FIRST_REG 0x2000
+#define REG_COUNT 16
+#define DE_RE = 4
 
-int DE_RE = 4;  //D2  For MAX485 chip
 ModbusRTU mb;
 
-union {  // variables in the union shares the same memory location
+union {
   uint16_t i[2];
   float f;
 } datamod;
 
-bool cb(Modbus::ResultCode event, uint16_t transactionId, void* data) {  // Callback to monitor errors
+bool cb(Modbus::ResultCode event, uint16_t transactionId, void* data) {
   if (event != Modbus::EX_SUCCESS) {
     Serial.print("Request result: 0x");
-    Serial.print(event, HEX);
+    Serial.println(event, HEX);
   }
   return true;
 }
 
-int tx_command = 0;
-int addr;  //0 of base_station,
-int rx_addr;
 unsigned long previousMillis = 0;
 const long interval = 5000;
 
-float ua;
-float ub;
-float uc;
-float ia;
-float ib;
-float ic;
-float pt;
-float pa;
-float pb;
-float pc;
-float qt;
-float qa;
-float qb;
-float qc;
+float voltage;
+float current;
+float activePower;
+float reactivePower;
+float powerFactor;
+float frequency;
 
 void setup() {
   Serial.begin(115200);
   delay(500);
 
-  Serial1.begin(9600, SERIAL_8N1, 23, 22);
+  Serial1.begin(9600, SERIAL_8N1, 22, 23);
+
   mb.begin(&Serial1, DE_RE);
   mb.master();
-  Serial.println("Done initializing....");
+
+  Serial.println("Modbus setup complete");
 }
 
 void loop() {
-  uint16_t res[REG_COUNT];
   unsigned long currentMillis = millis();
-  // If something available
+
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
-    Serial.println("start data collect;");
-    if (!mb.slave()) {                                       // Check if no transaction in progress
-      mb.readHreg(SLAVE_ID, FIRST_REG, res, REG_COUNT, cb);  // Send Read Hreg from Modbus Server
-      while (mb.slave()) {                                   // Check if transaction is active
+    Serial.println("\n--- Reading Meter Data ---");
+
+    // Only send new request if not waiting on previous
+    if (!mb.slave()) {
+      // Request 16 holding registers from address 0x2000
+      static uint16_t res[REG_COUNT];
+
+      mb.readIreg(SLAVE_ID, FIRST_REG, res, REG_COUNT, cb);
+
+      // Wait for transaction to complete
+      while (mb.slave()) {
         mb.task();
         delay(10);
       }
-      //VOLT
-      datamod.i[0] = res[1];
-      datamod.i[1] = res[0];
-      ua = datamod.f / 10;
+
+      // Print out raw data to see if frequency is non-zero now
+      for (int i = 0; i < REG_COUNT; i++) {
+        Serial.printf("res[%d] = 0x%04X\n", i, res[i]);
+      }
+
+      // Now parse the data from res[]:
+      // 1) Voltage @ 0x2000–0x2001 => res[0],res[1]
+      datamod.i[0] = res[1];  // low word
+      datamod.i[1] = res[0];  // high word
+      voltage = datamod.f;    // If you see a big value, maybe do voltage/10
+
+      // 2) Current @ 0x2002–0x2003 => res[2],res[3]
       datamod.i[0] = res[3];
       datamod.i[1] = res[2];
-      ub = datamod.f / 10;
+      current = datamod.f;  // Possibly current/100 if needed
+
+      // 3) Active Power @ 0x2004–0x2005 => res[4],res[5]
       datamod.i[0] = res[5];
       datamod.i[1] = res[4];
-      uc = datamod.f / 10;
-      Serial.println("Voltage:");
-      Serial.println(ua);
-      Serial.println(ub);
-      Serial.println(uc);
+      activePower = datamod.f;  // in kW (as doc states)
 
-      //CURRENT
+      // 4) Reactive Power @ 0x2006–0x2007 => res[6],res[7]
       datamod.i[0] = res[7];
       datamod.i[1] = res[6];
-      ia = datamod.f / 100;
-      datamod.i[0] = res[9];
-      datamod.i[1] = res[8];
-      ib = datamod.f / 100;
+      reactivePower = datamod.f;  // in kVar
+
+      // 5) PF @ 0x200A–0x200B => res[10],res[11]
       datamod.i[0] = res[11];
       datamod.i[1] = res[10];
-      ic = datamod.f / 100;
-      Serial.println("Current:");
-      Serial.println(ia);
-      Serial.println(ib);
-      Serial.println(ic);
+      powerFactor = datamod.f;  // typically -1 .. +1
 
-      Serial.println("Active Power:");
-      //ACTIVE POWER
-      datamod.i[0] = res[13];
-      datamod.i[1] = res[12];
-      pt = datamod.f;
+      // 6) Frequency @ 0x200E–0x200F => res[14],res[15]
       datamod.i[0] = res[15];
       datamod.i[1] = res[14];
-      pa = datamod.f;
-      datamod.i[0] = res[17];
-      datamod.i[1] = res[16];
-      pb = datamod.f;
-      datamod.i[0] = res[19];
-      datamod.i[1] = res[18];
-      pc = datamod.f;
+      frequency = datamod.f;  // Typically around 50 or 60
 
-      Serial.println(pt);
-      Serial.println(pa);
-      Serial.println(pb);
-      Serial.println(pc);
+      Serial.printf("res[14] = 0x%04X\n", res[14]);
+      Serial.printf("res[15] = 0x%04X\n", res[15]);
 
-      //REACTIVE POWER
-      datamod.i[0] = res[21];
-      datamod.i[1] = res[20];
-      qt = datamod.f / 10;
-      datamod.i[0] = res[23];
-      datamod.i[1] = res[22];
-      qa = datamod.f / 10;
-      datamod.i[0] = res[25];
-      datamod.i[1] = res[24];
-      qb = datamod.f / 10;
-      datamod.i[0] = res[27];
-      datamod.i[1] = res[26];
-      qc = datamod.f / 10;
-      Serial.println("Reactive Power:");
-      Serial.println(qt);
-      Serial.println(qa);
-      Serial.println(qb);
-      Serial.println(qc);
+      // Print them out
+      Serial.print("Voltage (V): ");
+      Serial.println(voltage);
+
+      Serial.print("Current (A): ");
+      Serial.println(current);
+
+      Serial.print("Active Power (kW): ");
+      Serial.println(activePower);
+
+      Serial.print("Reactive Power (kVar): ");
+      Serial.println(reactivePower);
+
+      Serial.print("Power Factor: ");
+      Serial.println(powerFactor);
+
+      Serial.print("Frequency (Hz): ");
+      Serial.println(frequency);
     }
   }
 }
