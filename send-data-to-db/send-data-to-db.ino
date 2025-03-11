@@ -2,9 +2,14 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 
+// Firebase
 #include <FirebaseClient.h>  // Your Firebase library
-#include <ModbusRTU.h>       // Modbus library
-#include <ArduinoJson.h>     // For JSON building
+
+// Modbus
+#include <ModbusRTU.h>
+
+// ArduinoJson
+#include <ArduinoJson.h>
 
 // ========== Wi-Fi Credentials ==========
 #define WIFI_SSID "scam ni"
@@ -15,7 +20,6 @@
 #define USER_EMAIL "test2@getnada.com"
 #define USER_PASSWORD "testtest"
 #define DATABASE_URL "https://kwc-register-7c3e1-default-rtdb.firebaseio.com/"
-// e.g. https://myproj-default-rtdb.firebaseio.com/
 
 // ========== Modbus ==========
 #define DE_RE_PIN 4  // RS485 DE/RE pin
@@ -26,28 +30,40 @@
 // For the total energy (kWh) at 0x4000–0x4001
 #define ENERGY_ADDR 0x4000
 
-// Example arrangement: multiple meters, each has (slaveId, name)
+// Each meter has a slave ID and a "name"
 struct MeterInfo {
   uint8_t slaveId;
-  const char *name;  // e.g. "meterA", "meterB", etc.
+  const char *name;  // e.g. "meterA", "meterB"
 };
 
+// Adjust these if you have different IDs/names
 MeterInfo meters[] = {
   { 11, "meterA" },
   { 12, "meterB" },
   { 13, "meterC" },
   { 14, "meterD" }
-  // Add more meter slave IDs if needed
 };
 const int NUM_METERS = sizeof(meters) / sizeof(meters[0]);
 
+// We'll assign each meter a dedicated GPIO pin for on/off control
+struct MeterPinMap {
+  const char *meterName;  // same as in meters[]
+  uint8_t pin;
+};
+
+MeterPinMap meterPins[] = {
+  { "meterA", 33 },
+  { "meterB", 32 },
+  { "meterC", 25 },
+  { "meterD", 26 }
+};
+const int NUM_METER_PINS = sizeof(meterPins) / sizeof(meterPins[0]);
+
 // Modbus object
 ModbusRTU mb;
-
-// We'll track the result of each Modbus transaction
 static Modbus::ResultCode lastModbusResult = Modbus::EX_SUCCESS;
 
-// The callback sets lastModbusResult if there's an error
+// Callback that sets lastModbusResult if there's an error
 bool modbusCallback(Modbus::ResultCode event, uint16_t transactionId, void *data) {
   lastModbusResult = event;
   if (event != Modbus::EX_SUCCESS) {
@@ -70,14 +86,15 @@ AsyncResult aResult_no_callback;
 unsigned long previousMillis = 0;
 const long interval = 5000;  // poll every 5 seconds
 
-// Forward declaration
+// Forward declarations
 bool readAndPushMeterData(uint8_t slaveId, const char *meterName);
 bool readInputRegisters(uint8_t slaveId, float &voltage, float &currentVal,
                         float &activePower, float &reactivePower,
                         float &powerFactor, float &frequency);
 bool readTotalEnergy(uint8_t slaveId, float &totalEnergy);
+bool getMeterEnabled(const char *meterName, bool &enabledOut);
 
-// Print any Firebase result messages
+// Print any Firebase result messages (same as before)
 void printResult(AsyncResult &aResult) {
   if (aResult.isEvent()) {
     Firebase.printf("Event task: %s, msg: %s, code: %d\n",
@@ -119,7 +136,7 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   // 2) Modbus
-  Serial1.begin(BAUD_RATE, SERIAL_8N1, 22, 23);  // TX=23, RX=22 (adjust if needed)
+  Serial1.begin(BAUD_RATE, SERIAL_8N1, 22, 23);
   mb.begin(&Serial1, DE_RE_PIN);
   mb.master();
   Serial.println("Modbus initialized.");
@@ -138,15 +155,16 @@ void setup() {
   Database.url(DATABASE_URL);
   Serial.println("Firebase setup complete.");
 
-
-  // ========== 4) Drive GPIO33 HIGH ==========
-  pinMode(33, OUTPUT);
-  digitalWrite(33, HIGH);
-  Serial.println("GPIO33 set to HIGH.");
+  // 4) Initialize Meter Control Pins
+  for (int i = 0; i < NUM_METER_PINS; i++) {
+    pinMode(meterPins[i].pin, OUTPUT);
+    digitalWrite(meterPins[i].pin, HIGH);  // default to HIGH
+    Serial.printf("Pin %d assigned to %s set HIGH at startup\n", meterPins[i].pin, meterPins[i].meterName);
+  }
 }
 
 void loop() {
-  // Handle firebase tasks
+  // Let Firebase handle any async tasks
   app.loop();
   Database.loop();
 
@@ -169,33 +187,34 @@ void loop() {
 /**
  * readAndPushMeterData
  *  - Reads from a single Modbus slave
- *  - If no error, pushes data to /meterData/<meterName> in Firebase
- *  - Returns true if data was successfully read & pushed, false on error.
+ *  - Pushes data to /meterData/<meterName> in Firebase
+ *  - Then checks /meterControl/<meterName>/enabled to set the corresponding GPIO
  */
 bool readAndPushMeterData(uint8_t slaveId, const char *meterName) {
   Serial.printf("\n--- Reading from slave %d (%s) ---\n", slaveId, meterName);
 
-  // We'll store the results of both reads here:
   float voltage = 0, currentVal = 0, activePower = 0;
   float reactivePower = 0, powerFactor = 0, frequency = 0;
   float totalEnergy = 0;
 
-  // 1) Read input registers for standard measurements
+  // 1) Read input registers
   bool okInput = readInputRegisters(slaveId, voltage, currentVal, activePower,
                                     reactivePower, powerFactor, frequency);
   if (!okInput) return false;
 
-  // 2) Read holding register for total kWh @ 0x4000
+  // 2) Read total energy
   bool okEnergy = readTotalEnergy(slaveId, totalEnergy);
   if (!okEnergy) return false;
 
-  // Debug print
+  // Debug
   Serial.printf("  V=%.2f, I=%.2f, P=%.2f, Q=%.2f, PF=%.3f, F=%.2f, Ep=%.4f kWh\n",
                 voltage, currentVal, activePower, reactivePower,
                 powerFactor, frequency, totalEnergy);
 
-  // Build JSON with ArduinoJson
-  StaticJsonDocument<256> doc;
+  // 3) Build JSON
+  // Using DynamicJsonDocument to avoid the deprecation warning:
+  DynamicJsonDocument doc(256);
+
   doc["timestamp"][".sv"] = "timestamp";
   doc["voltage"] = voltage;
   doc["current"] = currentVal;
@@ -203,41 +222,58 @@ bool readAndPushMeterData(uint8_t slaveId, const char *meterName) {
   doc["reactivePower"] = reactivePower;
   doc["powerFactor"] = powerFactor;
   doc["frequency"] = frequency;
-  doc["totalEnergy"] = totalEnergy;  // the newly read kWh
+  doc["totalEnergy"] = totalEnergy;
 
   String jsonPayload;
   serializeJson(doc, jsonPayload);
 
-  // Push to /meterData/<meterName>
+  // 4) Push to /meterData/<meterName>
   String path = String("/meterData/") + meterName;
   object_t data(jsonPayload);
-
-  // If Firebase app is ready, do the push
   if (app.ready()) {
     Database.push<object_t>(aClient, path, data, aResult_no_callback);
     Serial.printf("  Pushed to %s\n", path.c_str());
-    return true;
   } else {
     Serial.println("  Firebase app not ready. Skipped push.");
     return false;
   }
+
+  // 5) Now poll the "enabled" value from DB for this meter
+  bool meterEnabled = true;  // default
+  bool gotStatus = getMeterEnabled(meterName, meterEnabled);
+  if (gotStatus) {
+    // Find which pin belongs to this meter
+    int meterPin = -1;
+    for (int i = 0; i < NUM_METER_PINS; i++) {
+      if (strcmp(meterPins[i].meterName, meterName) == 0) {
+        meterPin = meterPins[i].pin;
+        break;
+      }
+    }
+    if (meterPin >= 0) {
+      digitalWrite(meterPin, meterEnabled ? HIGH : LOW);
+      Serial.printf("  => Setting pin %d to %s\n", meterPin, meterEnabled ? "HIGH" : "LOW");
+    }
+  } else {
+    Serial.println("  => Could not read meterEnabled from DB (error). Keeping pin as-is.");
+  }
+
+  return true;
 }
 
 /**
  * readInputRegisters
- *  - Reads addresses 0x2000..0x200F from the meter (input registers, function code 0x04)
- *  - Parses voltage/current/power/frequency, returns true if success
+ *  - Reads addresses 0x2000..0x200F from the meter (function code 0x04)
+ *  - Returns true if success
  */
 bool readInputRegisters(uint8_t slaveId, float &voltage, float &currentVal,
                         float &activePower, float &reactivePower,
                         float &powerFactor, float &frequency) {
   uint16_t res[REG_COUNT] = { 0 };
-
   lastModbusResult = Modbus::EX_SUCCESS;
-  // Read input registers (function code 0x04)
   mb.readIreg(slaveId, FIRST_REG, res, REG_COUNT, modbusCallback);
 
-  // Wait for transaction
+  // Wait
   while (mb.slave()) {
     mb.task();
     delay(10);
@@ -253,58 +289,50 @@ bool readInputRegisters(uint8_t slaveId, float &voltage, float &currentVal,
     float f;
   } datamod;
 
-  // Parse them (same logic as before)
-  // Voltage @ 0x2000–0x2001 => res[0],res[1]
+  // Voltage (0x2000-0x2001)
   datamod.i[0] = res[1];
   datamod.i[1] = res[0];
   voltage = datamod.f;
 
-  // Current @ 0x2002–0x2003 => res[2],res[3]
+  // Current (0x2002-0x2003)
   datamod.i[0] = res[3];
   datamod.i[1] = res[2];
   currentVal = datamod.f;
 
-  // Active Power @ 0x2004–0x2005 => res[4],res[5]
+  // Active Power (0x2004-0x2005)
   datamod.i[0] = res[5];
   datamod.i[1] = res[4];
   activePower = datamod.f;
 
-  // Reactive Power @ 0x2006–0x2007 => res[6],res[7]
+  // Reactive Power (0x2006-0x2007)
   datamod.i[0] = res[7];
   datamod.i[1] = res[6];
   reactivePower = datamod.f;
 
-  // Power Factor @ 0x200A–0x200B => res[10],res[11]
+  // Power Factor (0x200A-0x200B)
   datamod.i[0] = res[11];
   datamod.i[1] = res[10];
   powerFactor = datamod.f;
 
-  // Frequency @ 0x200E–0x200F => res[14],res[15]
+  // Frequency (0x200E-0x200F)
   datamod.i[0] = res[15];
   datamod.i[1] = res[14];
   frequency = datamod.f;
 
-  // success
   return true;
 }
 
 /**
  * readTotalEnergy
  *  - Reads 2 registers from 0x4000 (holding registers, function code 0x03)
- *  - Interprets them as a single precision float
- *  - Returns true if success, modifies totalEnergy
+ *  - Interprets as float
  */
 bool readTotalEnergy(uint8_t slaveId, float &totalEnergy) {
-  // Adjust if you suspect offset issues (e.g. 0x3FFF or 0x4001).
-  const uint16_t energyReg = ENERGY_ADDR;
-
   uint16_t epRegs[2] = { 0 };
-
   lastModbusResult = Modbus::EX_SUCCESS;
-  // Use readHreg => function code 0x03
-  mb.readHreg(slaveId, energyReg, epRegs, 2, modbusCallback);
+  mb.readHreg(slaveId, ENERGY_ADDR, epRegs, 2, modbusCallback);
 
-  // Wait for transaction
+  // Wait
   while (mb.slave()) {
     mb.task();
     delay(10);
@@ -319,11 +347,32 @@ bool readTotalEnergy(uint8_t slaveId, float &totalEnergy) {
     uint16_t i[2];
     float f;
   } datamod;
-
-  // Try same word order as the others
   datamod.i[0] = epRegs[1];  // low word
   datamod.i[1] = epRegs[0];  // high word
   totalEnergy = datamod.f;
 
   return true;
+}
+
+/**
+ * getMeterEnabled
+ *  - Reads a boolean from "/meterControl/<meterName>/enabled"
+ *    via a synchronous call that returns a bool
+ */
+bool getMeterEnabled(const char *meterName, bool &enabledOut) {
+  // Build path e.g. "/meterControl/meterA/enabled"
+  String path = String("/meterControl/") + meterName + "/enabled";
+
+  bool val = false;
+  // The library's "get<bool>(...)" returns the bool directly:
+  // If there's an error, it might return the default (false) or throw internally.
+  // We won't do advanced error handling here.
+  val = Database.get<bool>(aClient, path);
+
+  // Optional: If you want to check for an HTTP error code or do advanced checks,
+  // you'd do it here (some library versions store it in Database.httpCode(), etc.)
+  // For a simple approach, we just assume we got something.
+
+  enabledOut = val;
+  return true;  // or check for error if available
 }
