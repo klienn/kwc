@@ -12,9 +12,10 @@ class _RegisterPageState extends State<RegisterPage> {
   final AuthService _auth = AuthService(); // Instance of AuthService
   final _formKey = GlobalKey<FormState>(); // Form key for validation
 
-  // Controllers to get email and password inputs
+  // Controllers
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _roomCodeController = TextEditingController();
 
   bool _isObscure = true; // To control password visibility
 
@@ -104,38 +105,56 @@ class _RegisterPageState extends State<RegisterPage> {
                       val!.length < 6 ? 'Enter a password 6+ chars long' : null,
                 ),
                 SizedBox(height: 30),
+                Text(
+                  'Room Code',
+                  style: GoogleFonts.radley(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                SizedBox(height: 25),
+                TextFormField(
+                  controller: _roomCodeController,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(),
+                    hintText: 'Enter room code',
+                    prefixIcon: Icon(Icons.meeting_room),
+                  ),
+                  validator: (val) => val!.isEmpty ? 'Enter room code' : null,
+                ),
+                SizedBox(height: 30),
                 Center(
                   child: ElevatedButton(
                     onPressed: () async {
                       if (_formKey.currentState!.validate()) {
                         String email = _emailController.text.trim();
                         String password = _passwordController.text.trim();
+                        String roomCode = _roomCodeController.text.trim();
 
-                        // Call register function
-                        dynamic result = await _auth
-                            .registerWithEmailAndPassword(email, password);
-                        if (result == null) {
-                          // If registration fails, show error
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Error registering account'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        } else {
-                          // Registration successful, show success message
+                        try {
+                          await _auth.registerWithEmailAndPassword(
+                              email, password, roomCode);
+
+                          // If we get here, registration succeeded
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Registration successful!'),
                               backgroundColor: Colors.green,
                             ),
                           );
-
-                          // Navigate to SidebarLayout after successful registration
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => SidebarLayout(),
+                                builder: (context) => SidebarLayout()),
+                          );
+                        } catch (e) {
+                          // Display the error message from the thrown exception
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(e.toString()),
+                              backgroundColor: Colors.red,
                             ),
                           );
                         }

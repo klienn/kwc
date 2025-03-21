@@ -3,6 +3,14 @@ import 'package:google_sign_in/google_sign_in.dart'; // Import GoogleSignIn
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore import
 import 'package:kwc_app/models/user.dart';
 
+/// Static room codes for each meter
+const Map<String, String> meterToRoomCode = {
+  'meterA': '7VZRZC',
+  'meterB': 'VGNWJS',
+  'meterC': 'WHZOPC',
+  'meterD': '2HZ1I3',
+};
+
 class AuthService {
   final FirebaseAuth auth = FirebaseAuth.instance;
   final GoogleSignIn googleSignIn =
@@ -45,27 +53,59 @@ class AuthService {
     }
   }
 
-  // Register with email & password
-  Future registerWithEmailAndPassword(String email, String password) async {
+  Future registerWithEmailAndPassword(
+    String email,
+    String password,
+    String userEnteredCode,
+  ) async {
     try {
-      UserCredential result = await auth.createUserWithEmailAndPassword(
-          email: email, password: password);
-      User? user = result.user;
+      // 1. Validate room code FIRST
+      final meterName = meterToRoomCode.entries
+          .firstWhere((entry) => entry.value == userEnteredCode,
+              orElse: () => const MapEntry('', ''))
+          .key;
 
-      if (user != null) {
-        // Create Firestore document for the user
-        await firestore.collection('users').doc(user.uid).set({
-          'balance': 0,
-          'role': 'user',
-          'transactions': [],
-        });
-
-        return _userFromFirebaseUser(user);
+      if (meterName.isEmpty) {
+        // If code doesn't match, throw immediately
+        throw Exception(
+            "Invalid room code. Please use one of the valid codes.");
       }
-      return null;
+
+      // 2. Check if there's an active user for that meter
+      final activeUserQuery = await firestore
+          .collection('users')
+          .where('meterName', isEqualTo: meterName)
+          .where('active', isEqualTo: true)
+          .limit(1)
+          .get();
+
+      if (activeUserQuery.docs.isNotEmpty) {
+        throw Exception(
+            "Room Code '$userEnteredCode' is already assigned to an active user.");
+      }
+
+      // 3. Create the user in Firebase Auth ONLY IF the code is valid
+      UserCredential result = await auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      User? user = result.user;
+      if (user == null) return null;
+
+      // 4. Create Firestore doc with the required fields
+      await firestore.collection('users').doc(user.uid).set({
+        'active': true,
+        'transactions': [],
+        'balance': 0,
+        'lastTotalEnergy': 0,
+        'meterName': meterName,
+        'role': 'user',
+      });
+
+      return _userFromFirebaseUser(user);
     } catch (e) {
       print("Error registering user: $e");
-      return null;
+      rethrow;
     }
   }
 
