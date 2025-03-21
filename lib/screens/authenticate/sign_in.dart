@@ -88,32 +88,32 @@ class _SignInState extends State<SignIn> {
             ),
             SizedBox(height: 60),
             // Sign In Anonymously
-            Container(
-              child: ElevatedButton(
-                onPressed: () async {
-                  dynamic result = await _auth.signInAnon();
-                  if (result == null) {
-                    print('Error signing in');
-                  } else {
-                    print('Signed in');
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) =>
-                              SidebarLayout()), // Navigate to SidebarLayout
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xffF98866), // Button background color
-                  foregroundColor: Colors.white, // Text color
-                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                  textStyle: GoogleFonts.publicSans(
-                      fontSize: 20, fontWeight: FontWeight.w900),
-                ),
-                child: Text('Sign In Anon'),
-              ),
-            ),
+            // Container(
+            //   child: ElevatedButton(
+            //     onPressed: () async {
+            //       dynamic result = await _auth.signInAnon();
+            //       if (result == null) {
+            //         print('Error signing in');
+            //       } else {
+            //         print('Signed in');
+            //         Navigator.pushReplacement(
+            //           context,
+            //           MaterialPageRoute(
+            //               builder: (context) =>
+            //                   SidebarLayout()), // Navigate to SidebarLayout
+            //         );
+            //       }
+            //     },
+            //     style: ElevatedButton.styleFrom(
+            //       backgroundColor: Color(0xffF98866), // Button background color
+            //       foregroundColor: Colors.white, // Text color
+            //       padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+            //       textStyle: GoogleFonts.publicSans(
+            //           fontSize: 20, fontWeight: FontWeight.w900),
+            //     ),
+            //     child: Text('Sign In Anon'),
+            //   ),
+            // ),
             SizedBox(height: 10),
             // Sign In with Email
             Container(
@@ -138,21 +138,21 @@ class _SignInState extends State<SignIn> {
               ),
             ),
             // Sign In with Google
-            Container(
-              padding: EdgeInsets.symmetric(vertical: 20.0, horizontal: 50.0),
-              child: ElevatedButton(
-                onPressed:
-                    _signInWithGoogle, // Automatically sign in with Google
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xffF98866), // Button background color
-                  foregroundColor: Colors.white, // Text color
-                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                  textStyle: GoogleFonts.publicSans(
-                      fontSize: 20, fontWeight: FontWeight.w900),
-                ),
-                child: Text('Sign In with Google'),
-              ),
-            ),
+            // Container(
+            //   padding: EdgeInsets.symmetric(vertical: 20.0, horizontal: 50.0),
+            //   child: ElevatedButton(
+            //     onPressed:
+            //         _signInWithGoogle, // Automatically sign in with Google
+            //     style: ElevatedButton.styleFrom(
+            //       backgroundColor: Color(0xffF98866), // Button background color
+            //       foregroundColor: Colors.white, // Text color
+            //       padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+            //       textStyle: GoogleFonts.publicSans(
+            //           fontSize: 20, fontWeight: FontWeight.w900),
+            //     ),
+            //     child: Text('Sign In with Google'),
+            //   ),
+            // ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
