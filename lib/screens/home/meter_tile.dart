@@ -4,12 +4,14 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:kwc_app/screens/home/meter_detail.dart';
 
 class MeterTile extends StatefulWidget {
+  final String adminUid;
   final String meterId;
   final String title;
   final int offlineThresholdMs; // e.g. 60000 for 1 minute
 
   const MeterTile({
     Key? key,
+    required this.adminUid,
     required this.meterId,
     required this.title,
     this.offlineThresholdMs = 60000,
@@ -137,6 +139,7 @@ class _MeterTileState extends State<MeterTile> {
             context,
             MaterialPageRoute(
               builder: (context) => MeterDetails(
+                adminUid: widget.adminUid,
                 meterId: widget.meterId,
                 title: widget.title,
                 isOnline: isOnline,

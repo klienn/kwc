@@ -1,15 +1,18 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MeterDetails extends StatefulWidget {
-  final String meterId;
-  final String title;
-  final bool isOnline; // Optional initial status from the parent
-  final int offlineThresholdMs; // e.g. 60000 for 1 minute
+  final String adminUid; // UID of the admin doc in Firestore
+  final String meterId; // The meter's ID
+  final String title; // The meter title
+  final bool isOnline; // Optional initial status
+  final int offlineThresholdMs;
 
   const MeterDetails({
     Key? key,
+    required this.adminUid,
     required this.meterId,
     required this.title,
     this.isOnline = false,
@@ -23,11 +26,8 @@ class MeterDetails extends StatefulWidget {
 class _MeterDetailsState extends State<MeterDetails> {
   bool loading = true;
   bool error = false;
-
-  // We'll track if the meter is currently considered online
   bool isOnline = false;
 
-  // Data fields
   double voltage = 0.0;
   double current = 0.0;
   double frequency = 0.0;
@@ -36,12 +36,12 @@ class _MeterDetailsState extends State<MeterDetails> {
   double reactivePower = 0.0;
   double totalEnergy = 0.0;
 
-  // We'll store the last timestamp from the DB
   int lastTimestamp = 0;
-
-  // DB subscription & periodic timer
   StreamSubscription<DatabaseEvent>? _dbSubscription;
   Timer? _offlineTimer;
+
+  // For showing any Firestore error messages during deletion
+  String? _deleteError;
 
   @override
   void initState() {
@@ -52,7 +52,6 @@ class _MeterDetailsState extends State<MeterDetails> {
   }
 
   void _subscribeToMeterData() {
-    // Listen to the last entry from /meterData/<meterId>
     final query = FirebaseDatabase.instance
         .ref('meterData/${widget.meterId}')
         .limitToLast(1);
@@ -65,7 +64,6 @@ class _MeterDetailsState extends State<MeterDetails> {
 
       final dataSnapshot = event.snapshot.value;
       if (dataSnapshot == null) {
-        // No data => mark offline & reset fields
         setState(() {
           lastTimestamp = 0;
           isOnline = false;
@@ -74,19 +72,6 @@ class _MeterDetailsState extends State<MeterDetails> {
         return;
       }
 
-      // Example data structure:
-      // {
-      //   "OL59TN60WzhjW9pZWbQ": {
-      //     "activePower": 0,
-      //     "current": 0.002,
-      //     "frequency": 0,
-      //     "powerFactor": 0,
-      //     "reactivePower": 0,
-      //     "timestamp": 1741712647687,
-      //     "totalEnergy": -0.03,
-      //     "voltage": 241.7
-      //   }
-      // }
       final dataMap = dataSnapshot as Map<Object?, Object?>;
       final lastKey = dataMap.keys.first;
       final lastRecord = dataMap[lastKey] as Map<Object?, Object?>?;
@@ -100,7 +85,6 @@ class _MeterDetailsState extends State<MeterDetails> {
         return;
       }
 
-      // Extract fields (cast/parse properly)
       lastTimestamp = _parseTimestamp(lastRecord['timestamp']);
       voltage = _parseDouble(lastRecord['voltage']);
       current = _parseDouble(lastRecord['current']);
@@ -110,7 +94,6 @@ class _MeterDetailsState extends State<MeterDetails> {
       reactivePower = _parseDouble(lastRecord['reactivePower']);
       totalEnergy = _parseDouble(lastRecord['totalEnergy']);
 
-      // Check if we're within threshold => online
       _checkOnlineStatus();
     }, onError: (e) {
       setState(() {
@@ -122,19 +105,16 @@ class _MeterDetailsState extends State<MeterDetails> {
   }
 
   void _startOfflineTimer() {
-    // Check every 5 seconds if lastTimestamp is older than threshold
     _offlineTimer = Timer.periodic(Duration(seconds: 5), (timer) {
       if (!mounted) return;
       _checkOnlineStatus();
     });
   }
 
-  /// Compare 'now - lastTimestamp' to offlineThresholdMs
   void _checkOnlineStatus() {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final diff = nowMs - lastTimestamp;
     final newStatus = diff < widget.offlineThresholdMs;
-
     if (newStatus != isOnline) {
       setState(() {
         isOnline = newStatus;
@@ -181,7 +161,6 @@ class _MeterDetailsState extends State<MeterDetails> {
     final iconColor = error
         ? Colors.orange
         : (loading ? Colors.grey : (isOnline ? Colors.green : Colors.red));
-
     final statusText = error
         ? "Error"
         : (loading ? "Loading..." : (isOnline ? "Online" : "Offline"));
@@ -226,8 +205,6 @@ class _MeterDetailsState extends State<MeterDetails> {
                           ),
                         ),
                         SizedBox(height: 30),
-
-                        // Display the fields
                         _buildDataRow("Voltage", "$voltage V"),
                         _buildDataRow("Current", "$current A"),
                         _buildDataRow("Frequency", "$frequency Hz"),
@@ -235,7 +212,13 @@ class _MeterDetailsState extends State<MeterDetails> {
                         _buildDataRow("Active Power", "$activePower kW"),
                         _buildDataRow("Reactive Power", "$reactivePower kVAR"),
                         _buildDataRow("Total Energy", "$totalEnergy kWh"),
-
+                        if (_deleteError != null) ...[
+                          SizedBox(height: 20),
+                          Text(
+                            _deleteError!,
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
                         SizedBox(height: 30),
                         ElevatedButton(
                           onPressed: () => Navigator.pop(context),
@@ -243,6 +226,14 @@ class _MeterDetailsState extends State<MeterDetails> {
                             backgroundColor: Color(0xffF98866),
                           ),
                           child: Text("Go Back"),
+                        ),
+                        SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: _deleteMeter,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent,
+                          ),
+                          child: Text("Delete Meter"),
                         ),
                       ],
                     ),
@@ -275,5 +266,45 @@ class _MeterDetailsState extends State<MeterDetails> {
         ],
       ),
     );
+  }
+
+  /// Remove this meter from admin's meters[] array in Firestore
+  Future<void> _deleteMeter() async {
+    try {
+      // Retrieve the doc for adminUid
+      final adminDocRef = FirebaseDatabase.instance.app ==
+              null // Not relevant for Firestore, but we can do:
+          ? throw Exception(
+              "No Firestore initialization found") // or handle differently
+          : FirebaseFirestore.instance.collection('users').doc(widget.adminUid);
+
+      final docSnap = await adminDocRef.get();
+      if (!docSnap.exists) {
+        setState(() => _deleteError = "Admin doc not found.");
+        return;
+      }
+
+      final data = docSnap.data() as Map<String, dynamic>;
+      final meters = (data['meters'] as List<dynamic>?) ?? [];
+
+      // Find the meter object with this meterId
+      final index = meters.indexWhere(
+          (m) => m is Map<String, dynamic> && m['meterId'] == widget.meterId);
+      if (index == -1) {
+        setState(() => _deleteError = "Meter ID not found in admin doc.");
+        return;
+      }
+
+      // Remove the meter object
+      meters.removeAt(index);
+
+      // Update the doc
+      await adminDocRef.update({'meters': meters});
+
+      // Return to previous screen
+      Navigator.pop(context);
+    } catch (e) {
+      setState(() => _deleteError = "Error deleting meter: $e");
+    }
   }
 }
