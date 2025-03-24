@@ -4,6 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:kwc_app/models/user.dart';
 
+const Map<String, String> meterToRoomCode = {
+  'meterA': 'Room A',
+  'meterB': 'Room B',
+  'meterC': 'Room C',
+  'meterD': 'Room D',
+};
+
 class Home extends StatelessWidget implements NavigationStates {
   @override
   Widget build(BuildContext context) {
@@ -55,6 +62,7 @@ class Home extends StatelessWidget implements NavigationStates {
 
             var userData = snapshot.data!.data() as Map<String, dynamic>;
             var balance = userData['balance'] ?? 0;
+            var room = meterToRoomCode[userData['meterName']];
 
             return Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -66,6 +74,11 @@ class Home extends StatelessWidget implements NavigationStates {
                 SizedBox(height: 20),
                 Text(
                   'Your Balance: ₱${balance.toString()}',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+                ),
+                SizedBox(height: 5),
+                Text(
+                  'Room: $room',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
                 ),
               ],

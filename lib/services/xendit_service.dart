@@ -21,7 +21,7 @@ class XenditService {
       'Authorization': 'Basic ${base64Encode(utf8.encode('$secretKey:'))}',
       'Content-Type': 'application/json',
       'X-Callback-URL':
-          'https://earwig-proven-vertically.ngrok-free.app/xendit/webhook' // Add callback URL in headers
+          'https://kwc.onrender.com/xendit/webhook' // Add callback URL in headers
     };
 
     final body = jsonEncode({
@@ -31,10 +31,8 @@ class XenditService {
       "checkout_method": "ONE_TIME_PAYMENT",
       "channel_code": "PH_GCASH",
       "channel_properties": {
-        "success_redirect_url":
-            "https://earwig-proven-vertically.ngrok-free.app/payment-success",
-        "failure_redirect_url":
-            "https://earwig-proven-vertically.ngrok-free.app/payment-failure"
+        "success_redirect_url": "https://kwc.onrender.com/payment-success",
+        "failure_redirect_url": "https://kwc.onrender.com/payment-failure"
       },
       "metadata": {"userId": user?.uid}
     });

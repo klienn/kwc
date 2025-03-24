@@ -30,7 +30,10 @@ class MyApp extends StatelessWidget {
         print("Stream error: $error");
         return null; // Handle stream error
       },
-      child: MaterialApp(home: Wrapper()),
+      child: MaterialApp(
+        home: Wrapper(),
+        debugShowCheckedModeBanner: false,
+      ),
     );
   }
 }
