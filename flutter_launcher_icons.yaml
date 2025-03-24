@@ -1,0 +1,4 @@
+flutter_launcher_icons:
+  android: true
+  ios: false # Set to true if you also want iOS icons
+  image_path: "images/Logo A.png"
