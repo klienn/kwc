@@ -108,7 +108,26 @@ import admin from 'firebase-admin';
     app.get('/payment-success', (req, res) => {
       res.send(`
         <html>
-          <body style="text-align: center;">
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Payment Success</title>
+            <style>
+              body {
+                text-align: center;
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 20px;
+                box-sizing: border-box;
+              }
+              h1 {
+                color: green;
+              }
+              p {
+                font-size: 16px;
+              }
+            </style>
+          </head>
+          <body>
             <h1>Payment Successful!</h1>
             <p>Your payment was successfully processed.</p>
             <p>Please close this window and return to the app.</p>
@@ -121,7 +140,26 @@ import admin from 'firebase-admin';
     app.get('/payment-failure', (req, res) => {
       res.send(`
         <html>
-          <body style="text-align: center;">
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Payment Failed</title>
+            <style>
+              body {
+                text-align: center;
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 20px;
+                box-sizing: border-box;
+              }
+              h1 {
+                color: red;
+              }
+              p {
+                font-size: 16px;
+              }
+            </style>
+          </head>
+          <body>
             <h1>Payment Failed</h1>
             <p>Unfortunately, your payment could not be processed.</p>
             <p>Please close this window and try again later.</p>
@@ -129,6 +167,7 @@ import admin from 'firebase-admin';
         </html>
       `);
     });
+
 
     app.listen(PORT, () => {
       console.log(`Webhook server is running on http://localhost:${PORT}`);
