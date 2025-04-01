@@ -32,32 +32,89 @@ import admin from 'firebase-admin';
     app.post('/xendit/webhook', async (req, res) => {
       try {
         const event = req.body;
-
         console.log('Received event:', event);
-
+    
+        // -------------------------------------------------
+        // 1) Check if this is from the Arduino or from Xendit
+        // -------------------------------------------------
+        
+        // If your Arduino includes a special field, e.g. "fromArduino": true
+        if (event.fromArduino) {
+          // -----------------------------------------------
+          // Handle the Arduino Payment data
+          // -----------------------------------------------
+          const { userId, amount, referenceId } = event;
+          // Example shape: { fromArduino: true, userId: "abc123", amount: 50, referenceId: "ARD-0001" }
+    
+          if (!userId || typeof amount !== 'number') {
+            throw new Error('Invalid Arduino data. "userId" or "amount" missing/invalid');
+          }
+    
+          // Convert or interpret the amount as needed
+          const amountNumber = Number(amount);
+          if (isNaN(amountNumber) || amountNumber <= 0) {
+            throw new Error(`Invalid amount: ${amount}`);
+          }
+    
+          // Log
+          console.log(`Arduino Payment from user=${userId}, amount=${amountNumber}, refId=${referenceId || 'N/A'}`);
+    
+          // 1) Reference user doc
+          const userRef = admin.firestore().collection('users').doc(userId);
+    
+          // 2) Update user’s balance
+          await userRef.set({
+            balance: admin.firestore.FieldValue.increment(amountNumber),
+            transactions: admin.firestore.FieldValue.arrayUnion({
+              transactionId: referenceId || `arduino-${Date.now()}`,
+              amount: amountNumber,
+              source: 'arduino', 
+              timestamp: new Date().toISOString(),
+              status: 'SUCCESS'
+            })
+          }, { merge: true });
+    
+          // 3) Optionally add a "message" subcollection doc
+          await userRef.collection('messages').add({
+            title: 'Cash Payment Received',
+            referenceId: referenceId || `arduino-${Date.now()}`,
+            message: `You inserted ₱${amountNumber} at the bill acceptor.`,
+            read: false,
+            timestamp: new Date().toISOString()
+          });
+    
+          console.log(`User ${userId} updated with Arduino payment successfully.`);
+    
+          // Respond OK
+          return res.status(200).send('Arduino payment processed');
+        }
+    
+        // -----------------------------------------------
+        // 2) Otherwise, check if it's a Xendit event
+        // -----------------------------------------------
         if (event.event === 'ewallet.capture') {
           const { reference_id, status, capture_amount, metadata } = event.data;
-
           console.log(`Payment for ${reference_id} is now ${status}. Amount: ${capture_amount}`);
     
+          // For testing
           if (reference_id === 'test-payload') {
-            res.status(200).send('Webhook received');
+            res.status(200).send('Webhook test received');
+            return;
           }
+    
           if (status === 'SUCCEEDED') {
             const userId = metadata.userId;
-            // Convert amount to a number to ensure it's a valid input for increment
+            // Convert centavos to pesos if needed (assuming capture_amount is in centavos)
             const amountNumber = parseFloat(capture_amount) / 100;
-
-            console.log(`Payment ${reference_id} completed successfully. Adding ${amountNumber} to user ${userId}`);
- 
+    
+            console.log(`Payment ${reference_id} completed. Adding ${amountNumber} to user ${userId}`);
             if (isNaN(amountNumber)) {
               throw new Error(`Invalid amount value: ${capture_amount}`);
             }
-
-            // Reference to the user's document in Firestore
+    
             const userRef = admin.firestore().collection('users').doc(userId);
-
-            // Update the user's balance or add transaction history
+    
+            // Update the user’s balance or add transaction history
             await userRef.set({
               balance: admin.firestore.FieldValue.increment(amountNumber),
               transactions: admin.firestore.FieldValue.arrayUnion({
@@ -67,7 +124,7 @@ import admin from 'firebase-admin';
                 timestamp: new Date().toISOString()
               })
             }, { merge: true });
-
+    
             // Add a new message for successful transaction
             await userRef.collection('messages').add({
               title: 'Payment Successful',
@@ -76,33 +133,39 @@ import admin from 'firebase-admin';
               read: false,
               timestamp: new Date().toISOString()
             });
-
+    
             console.log(`User ${userId} balance updated successfully.`);
+    
           } else if (status === 'FAILED') {
             const userId = metadata.userId;
-
-            // Reference to the user's document in Firestore
             const userRef = admin.firestore().collection('users').doc(userId);
-
-            // Add a new message for failed transaction
+    
+            // Create a doc in subcollection "messages" for the failed transaction
             await userRef.collection('messages').add({
               title: 'Payment Failed',
               referenceId: reference_id,
-              message: `Your payment of ₱${parseFloat(capture_amount) / 100} has failed. Please try again.`,
+              message: `Your payment of ₱${parseFloat(capture_amount) / 100} has failed.`,
               read: false,
               timestamp: new Date().toISOString()
             });
-
-            console.log(`User ${userId} has been notified of the failed payment.`);
+    
+            console.log(`User ${userId} notified of the failed payment.`);
           }
+    
+          // Done with the Xendit event
+          return res.status(200).send('Xendit webhook processed');
         }
-
-        res.status(200).send('Webhook received');
+    
+        // If neither Arduino nor ewallet.capture, just return 200
+        // Could handle other event types or error out
+        console.log('Received unknown event type, ignoring');
+        return res.status(200).send('Unknown event');
       } catch (error) {
         console.error('Error handling webhook:', error);
         res.status(500).send('Internal Server Error');
       }
     });
+    
 
     // Route for payment success
     app.get('/payment-success', (req, res) => {
