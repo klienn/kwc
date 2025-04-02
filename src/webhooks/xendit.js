@@ -43,31 +43,37 @@ import admin from 'firebase-admin';
           // -----------------------------------------------
           // Handle the Arduino Payment data
           // -----------------------------------------------
-          const { userId, amount, referenceId } = event;
+          const { userId, amountTarget, amountInserted, referenceId } = event;
           // Example shape: { fromArduino: true, userId: "abc123", amount: 50, referenceId: "ARD-0001" }
     
-          if (!userId || typeof amount !== 'number') {
-            throw new Error('Invalid Arduino data. "userId" or "amount" missing/invalid');
+          if (!userId || typeof amountTarget !== 'number' || typeof amountInserted !== 'number') {
+            throw new Error('Invalid Arduino data. "userId" or "amountTarget" or "amountInserted" missing/invalid');
           }
     
           // Convert or interpret the amount as needed
-          const amountNumber = Number(amount);
-          if (isNaN(amountNumber) || amountNumber <= 0) {
-            throw new Error(`Invalid amount: ${amount}`);
+          const amountTargetNumber = Number(amountTarget);
+          const amountInsertedNumber = Number(amountInserted);
+          if (isNaN(amountTargetNumber) || amountTargetNumber <= 0) {
+            throw new Error(`Invalid amountTargetNumber: ${amountTargetNumber}`);
+          }
+
+          if (isNaN(amountInsertedNumber) || amountInsertedNumber <= 0) {
+            throw new Error(`Invalid amountInsertedNumber: ${amountInsertedNumber}`);
           }
     
           // Log
-          console.log(`Arduino Payment from user=${userId}, amount=${amountNumber}, refId=${referenceId || 'N/A'}`);
+          console.log(`Arduino Payment from user=${userId}, amountTargetNumber=${amountTargetNumber}, amountInsertedNumber=${amountInsertedNumber}, refId=${referenceId || 'N/A'}`);
     
           // 1) Reference user doc
           const userRef = admin.firestore().collection('users').doc(userId);
     
           // 2) Update user’s balance
           await userRef.set({
-            balance: admin.firestore.FieldValue.increment(amountNumber),
+            balance: admin.firestore.FieldValue.increment(amountTargetNumber),
             transactions: admin.firestore.FieldValue.arrayUnion({
               transactionId: referenceId || `arduino-${Date.now()}`,
-              amount: amountNumber,
+              targetAmount: amountTargetNumber,
+              insertedAmount: amountInsertedNumber,
               source: 'arduino', 
               timestamp: new Date().toISOString(),
               status: 'SUCCESS'
@@ -78,7 +84,7 @@ import admin from 'firebase-admin';
           await userRef.collection('messages').add({
             title: 'Cash Payment Received',
             referenceId: referenceId || `arduino-${Date.now()}`,
-            message: `You inserted ₱${amountNumber} at the bill acceptor.`,
+            message: `You inserted ₱${amountInsertedNumber} at the bill acceptor. ₱${amountTargetNumber} is credited to your account.`,
             read: false,
             timestamp: new Date().toISOString()
           });
