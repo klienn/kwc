@@ -125,13 +125,94 @@ class AdminHome extends StatelessWidget implements NavigationStates {
                   ),
                 );
 
-                // Return the GridView with all tiles
-                return GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  shrinkWrap: true,
-                  children: gridChildren,
+                final kwhRate = (docData['kwhRate'] ?? 0).toDouble();
+
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8.0, vertical: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Text(
+                                "kWh Rate: ",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                              Text(
+                                "₱${kwhRate.toStringAsFixed(2)}",
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.edit, size: 20),
+                            onPressed: () async {
+                              final controller = TextEditingController(
+                                  text: kwhRate.toString());
+
+                              final result = await showDialog<double>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text("Edit kWh Rate"),
+                                  content: TextField(
+                                    controller: controller,
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                            decimal: true),
+                                    decoration: const InputDecoration(
+                                      labelText: "₱ per kWh",
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text("Cancel"),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        final newRate = double.tryParse(
+                                            controller.text.trim());
+                                        if (newRate != null) {
+                                          Navigator.pop(context, newRate);
+                                        }
+                                      },
+                                      child: const Text("Save"),
+                                    )
+                                  ],
+                                ),
+                              );
+
+                              if (result != null) {
+                                await FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(user.uid)
+                                    .update({'kwhRate': result});
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: Center(
+                        child: GridView.count(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          shrinkWrap: true,
+                          children: gridChildren,
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
