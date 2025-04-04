@@ -8,9 +8,6 @@ admin.initializeApp();
 const db = admin.firestore();
 const rtdb = admin.database();
 
-// Example rate
-const ratePerKwh = 17;
-
 /**
  * This v2 function triggers whenever a new value is written
  * at /meterData/{meterName}/{pushId}, i.e. a newly created child.
@@ -61,6 +58,22 @@ export const onNewMeterReading = onValueCreated(
     if (usage < 0) {
       console.log(`Usage negative => usage=${usage}. Setting usage=0`);
       usage = 0;
+    }
+
+    // 2) Fetch the admin user's kWh rate
+    const adminSnap = await db
+      .collection("users")
+      .where("role", "==", "admin")
+      .limit(1)
+      .get();
+
+    let ratePerKwh = 17; // fallback default
+    if (!adminSnap.empty) {
+      const adminDoc = adminSnap.docs[0];
+      const adminData = adminDoc.data();
+      if (adminData.kwhRate !== undefined && typeof adminData.kwhRate === "number") {
+        ratePerKwh = adminData.kwhRate;
+      }
     }
 
     const cost = usage * ratePerKwh;
