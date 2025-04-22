@@ -94,6 +94,12 @@ bool readInputRegisters(uint8_t slaveId, float &voltage, float &currentVal,
 bool readTotalEnergy(uint8_t slaveId, float &totalEnergy);
 bool getMeterEnabled(const char *meterName, bool &enabledOut);
 
+void fbThrottle() {
+  delay(50);
+  app.loop();
+  Database.loop();
+}
+
 // Print any Firebase result messages (same as before)
 void printResult(AsyncResult &aResult) {
   if (aResult.isEvent()) {
@@ -158,12 +164,21 @@ void setup() {
   // 4) Initialize Meter Control Pins
   for (int i = 0; i < NUM_METER_PINS; i++) {
     pinMode(meterPins[i].pin, OUTPUT);
-    digitalWrite(meterPins[i].pin, HIGH);  // default to HIGH
+    digitalWrite(meterPins[i].pin, LOW);  // default to HIGH
     Serial.printf("Pin %d assigned to %s set HIGH at startup\n", meterPins[i].pin, meterPins[i].meterName);
   }
 }
 
 void loop() {
+
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Wi-Fi disconnected! Attempting reconnect...");
+    WiFi.disconnect();
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    delay(1000);
+    return;
+  }
+
   // Let Firebase handle any async tasks
   app.loop();
   Database.loop();
@@ -192,6 +207,26 @@ void loop() {
  */
 bool readAndPushMeterData(uint8_t slaveId, const char *meterName) {
   Serial.printf("\n--- Reading from slave %d (%s) ---\n", slaveId, meterName);
+
+  // 5) Now poll the "enabled" value from DB for this meter
+  bool meterEnabled = true;  // default
+  bool gotStatus = getMeterEnabled(meterName, meterEnabled);
+  if (gotStatus) {
+    // Find which pin belongs to this meter
+    int meterPin = -1;
+    for (int i = 0; i < NUM_METER_PINS; i++) {
+      if (strcmp(meterPins[i].meterName, meterName) == 0) {
+        meterPin = meterPins[i].pin;
+        break;
+      }
+    }
+    if (meterPin >= 0) {
+      digitalWrite(meterPin, meterEnabled ? HIGH : LOW);
+      Serial.printf("  => Setting pin %d to %s\n", meterPin, meterEnabled ? "HIGH" : "LOW");
+    }
+  } else {
+    Serial.println("  => Could not read meterEnabled from DB (error). Keeping pin as-is.");
+  }
 
   float voltage = 0, currentVal = 0, activePower = 0;
   float reactivePower = 0, powerFactor = 0, frequency = 0;
@@ -226,36 +261,17 @@ bool readAndPushMeterData(uint8_t slaveId, const char *meterName) {
 
   String jsonPayload;
   serializeJson(doc, jsonPayload);
-
+  fbThrottle();
   // 4) Push to /meterData/<meterName>
   String path = String("/meterData/") + meterName;
   object_t data(jsonPayload);
   if (app.ready()) {
     Database.push<object_t>(aClient, path, data, aResult_no_callback);
+    fbThrottle();
     Serial.printf("  Pushed to %s\n", path.c_str());
   } else {
     Serial.println("  Firebase app not ready. Skipped push.");
     return false;
-  }
-
-  // 5) Now poll the "enabled" value from DB for this meter
-  bool meterEnabled = true;  // default
-  bool gotStatus = getMeterEnabled(meterName, meterEnabled);
-  if (gotStatus) {
-    // Find which pin belongs to this meter
-    int meterPin = -1;
-    for (int i = 0; i < NUM_METER_PINS; i++) {
-      if (strcmp(meterPins[i].meterName, meterName) == 0) {
-        meterPin = meterPins[i].pin;
-        break;
-      }
-    }
-    if (meterPin >= 0) {
-      digitalWrite(meterPin, meterEnabled ? HIGH : LOW);
-      Serial.printf("  => Setting pin %d to %s\n", meterPin, meterEnabled ? "HIGH" : "LOW");
-    }
-  } else {
-    Serial.println("  => Could not read meterEnabled from DB (error). Keeping pin as-is.");
   }
 
   return true;
@@ -362,17 +378,10 @@ bool readTotalEnergy(uint8_t slaveId, float &totalEnergy) {
 bool getMeterEnabled(const char *meterName, bool &enabledOut) {
   // Build path e.g. "/meterControl/meterA/enabled"
   String path = String("/meterControl/") + meterName + "/enabled";
-
+  fbThrottle();
   bool val = false;
-  // The library's "get<bool>(...)" returns the bool directly:
-  // If there's an error, it might return the default (false) or throw internally.
-  // We won't do advanced error handling here.
   val = Database.get<bool>(aClient, path);
-
-  // Optional: If you want to check for an HTTP error code or do advanced checks,
-  // you'd do it here (some library versions store it in Database.httpCode(), etc.)
-  // For a simple approach, we just assume we got something.
-
+  fbThrottle();
   enabledOut = val;
-  return true;  // or check for error if available
+  return true;
 }
