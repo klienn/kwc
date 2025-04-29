@@ -1,9 +1,12 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" 
+    xmlns:tools="http://schemas.android.com/tools">
+    
     <!-- Add the permissions here -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     
     <application
         android:label="KWC"
@@ -34,6 +37,14 @@
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <service
+            android:name="com.google.firebase.messaging.FirebaseMessagingService"
+            android:exported="true"
+            tools:replace="android:exported">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

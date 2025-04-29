@@ -70,7 +70,7 @@ class _SignInState extends State<SignIn> {
               padding: const EdgeInsets.only(top: 30.0), // Add top padding
               child: Image.asset(
                 'images/Logo D.png',
-                height: 300,
+                height: MediaQuery.of(context).size.height * 0.3,
                 fit: BoxFit
                     .contain, // Ensures the image is contained within the given height
               ),

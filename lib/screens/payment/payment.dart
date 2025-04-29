@@ -30,6 +30,8 @@ class _PaymentState extends State<Payment> {
   int _target = 0;
   String _status = '';
 
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +84,9 @@ class _PaymentState extends State<Payment> {
     } catch (e) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      // Always reset loading state after attempt
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -93,9 +98,17 @@ class _PaymentState extends State<Payment> {
       if (snapshot.exists) {
         final data = snapshot.value as Map;
         final status = data['status'] ?? '';
+        final activePaymentUserId = data['userId'] ?? '';
         if (status == 'pending' || status == 'in_progress') {
+          if (activePaymentUserId.toString() == userId) {
+            _listenToCashPayment();
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text('You have a cash payment in progress.')));
+            return;
+          }
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('A cash payment is already in progress.')));
+              content: Text(
+                  'A cash payment from different user is already in progress.')));
           return;
         }
       }
@@ -170,22 +183,36 @@ class _PaymentState extends State<Payment> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 20,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Radio<PaymentMethod>(
-                    value: PaymentMethod.gcash,
-                    groupValue: _selectedMethod,
-                    onChanged: (val) => setState(() => _selectedMethod = val!),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Radio<PaymentMethod>(
+                        value: PaymentMethod.gcash,
+                        groupValue: _selectedMethod,
+                        onChanged: (val) =>
+                            setState(() => _selectedMethod = val!),
+                      ),
+                      Text('Pay with GCash'),
+                    ],
                   ),
-                  Text('Pay with GCash'),
-                  SizedBox(width: 20),
-                  Radio<PaymentMethod>(
-                    value: PaymentMethod.cash,
-                    groupValue: _selectedMethod,
-                    onChanged: (val) => setState(() => _selectedMethod = val!),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Radio<PaymentMethod>(
+                        value: PaymentMethod.cash,
+                        groupValue: _selectedMethod,
+                        onChanged: (val) =>
+                            setState(() => _selectedMethod = val!),
+                      ),
+                      Text('Pay with Cash'),
+                    ],
                   ),
-                  Text('Pay with Cash'),
                 ],
               ),
               SizedBox(height: 20),
@@ -206,17 +233,38 @@ class _PaymentState extends State<Payment> {
               SizedBox(height: 20),
               if (_selectedMethod == PaymentMethod.gcash)
                 ElevatedButton(
-                  onPressed: _handleGCashPayment,
+                  onPressed: _isLoading ? null : _handleGCashPayment,
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xffF98866)),
-                  child: Text('Pay with GCash'),
+                  child: _isLoading
+                      ? SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text('Pay with GCash'),
                 ),
               if (_selectedMethod == PaymentMethod.cash)
                 ElevatedButton(
-                  onPressed: () => _startCashPayment(userId),
+                  onPressed:
+                      _isLoading ? null : () => _startCashPayment(userId),
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xffF98866)),
-                  child: Text('Start Cash Payment'),
+                  child: _isLoading
+                      ? SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text('Start Cash Payment'),
                 ),
               if (_status.isNotEmpty) ...[
                 SizedBox(height: 20),

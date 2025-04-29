@@ -10,59 +10,61 @@ class Logout extends StatelessWidget implements NavigationStates {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xffa7beae), // Set the background color
-      appBar: AppBar(
-        title: Text(
-          "Logout",
-          style: GoogleFonts.radley(
-            fontSize: 30,
-            fontWeight: FontWeight.bold,
+        backgroundColor: Color(0xffa7beae), // Set the background color
+        appBar: AppBar(
+          title: Text(
+            "Logout",
+            style: GoogleFonts.radley(
+              fontSize: 30,
+              fontWeight: FontWeight.bold,
+            ),
           ),
+          backgroundColor: Color(0xffF98866),
+          centerTitle: true,
+          elevation: 0.0,
         ),
-        backgroundColor: Color(0xffF98866),
-        centerTitle: true,
-        elevation: 0.0,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start, // Start alignment
-          crossAxisAlignment: CrossAxisAlignment.center, // Center alignment
-          children: [
-            // Adjusting the logo image at the top center
-            Padding(
-              padding: const EdgeInsets.only(top: 40.0), // Add top padding
-              child: Image.asset(
-                'images/Logo D.png',
-                height: 300,
-                fit: BoxFit
-                    .contain, // Ensures the image is contained within the given height
-              ),
+        body: SingleChildScrollView(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start, // Start alignment
+              crossAxisAlignment: CrossAxisAlignment.center, // Center alignment
+              children: [
+                // Adjusting the logo image at the top center
+                Padding(
+                  padding: const EdgeInsets.only(top: 40.0), // Add top padding
+                  child: Image.asset(
+                    'images/Logo D.png',
+                    height: 300,
+                    fit: BoxFit
+                        .contain, // Ensures the image is contained within the given height
+                  ),
+                ),
+                SizedBox(height: 20), // Space between logo and GIF
+                // Adjusting the GIF
+                Image.asset(
+                  'images/bye.gif', // Path to your GIF
+                  height: 200, // Set height as needed
+                  width: 200, // Set width as needed
+                  fit: BoxFit.contain, // Ensures the GIF covers the area
+                ),
+                SizedBox(height: 20), // Space between GIF and button
+                ElevatedButton(
+                  onPressed: () {
+                    _showLogoutDialog(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        Color(0xffF98866), // Button background color
+                    foregroundColor: Colors.white, // Text color
+                    padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                    textStyle: TextStyle(fontSize: 20),
+                  ),
+                  child: Text("Log Out"),
+                ),
+              ],
             ),
-            SizedBox(height: 20), // Space between logo and GIF
-            // Adjusting the GIF
-            Image.asset(
-              'images/bye.gif', // Path to your GIF
-              height: 200, // Set height as needed
-              width: 200, // Set width as needed
-              fit: BoxFit.contain, // Ensures the GIF covers the area
-            ),
-            SizedBox(height: 20), // Space between GIF and button
-            ElevatedButton(
-              onPressed: () {
-                _showLogoutDialog(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xffF98866), // Button background color
-                foregroundColor: Colors.white, // Text color
-                padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                textStyle: TextStyle(fontSize: 20),
-              ),
-              child: Text("Log Out"),
-            ),
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 
   void _showLogoutDialog(BuildContext context) {

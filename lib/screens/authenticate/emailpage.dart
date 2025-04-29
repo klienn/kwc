@@ -12,6 +12,7 @@ class _EmailpageState extends State<Emailpage> {
   // Variables to control password visibility and remember me checkbox
   bool _isObscure = true;
   bool _rememberMe = false;
+  bool _isLoading = false;
 
   // Controllers for capturing input
   final TextEditingController _emailController = TextEditingController();
@@ -59,7 +60,7 @@ class _EmailpageState extends State<Emailpage> {
                 ),
                 SizedBox(height: 25),
                 TextField(
-                  controller: _emailController, // Email controller
+                  controller: _emailController,
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: Colors.white,
@@ -76,8 +77,8 @@ class _EmailpageState extends State<Emailpage> {
                 ),
                 SizedBox(height: 25),
                 TextField(
-                  controller: _passwordController, // Password controller
-                  obscureText: _isObscure, // Control visibility of the text
+                  controller: _passwordController,
+                  obscureText: _isObscure,
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: Colors.white,
@@ -89,7 +90,6 @@ class _EmailpageState extends State<Emailpage> {
                         _isObscure ? Icons.visibility : Icons.visibility_off,
                       ),
                       onPressed: () {
-                        // Toggle password visibility
                         setState(() {
                           _isObscure = !_isObscure;
                         });
@@ -97,10 +97,14 @@ class _EmailpageState extends State<Emailpage> {
                     ),
                   ),
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                SizedBox(height: 10),
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: 5,
                   children: [
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Checkbox(
                           value: _rememberMe,
@@ -135,44 +139,56 @@ class _EmailpageState extends State<Emailpage> {
                 SizedBox(height: 30),
                 Center(
                   child: ElevatedButton(
-                    onPressed: () async {
-                      // Capture email and password
-                      String email = _emailController.text.trim();
-                      String password = _passwordController.text.trim();
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            setState(() => _isLoading = true);
 
-                      // Attempt to sign in using AuthService
-                      dynamic result = await _auth.signInWithEmailAndPassword(
-                          email, password);
+                            String email = _emailController.text.trim();
+                            String password = _passwordController.text.trim();
 
-                      if (result == null) {
-                        // Display error if sign-in failed
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                'Error signing in with email and password'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      } else {
-                        // Successful sign-in
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Successfully signed in'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                        // Navigate to SidebarLayout after successful sign-in
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => SidebarLayout()),
-                        );
-                      }
-                    },
+                            try {
+                              dynamic result = await _auth
+                                  .signInWithEmailAndPassword(email, password);
+
+                              if (result == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Error signing in with email and password'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Successfully signed in'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+
+                                // Navigate to SidebarLayout after successful sign-in
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => SidebarLayout()),
+                                );
+                              }
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Unexpected error occurred.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            } finally {
+                              // Always reset loading state after attempt
+                              if (mounted) setState(() => _isLoading = false);
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          Color(0xffF98866), // Button background color
-                      foregroundColor: Colors.white, // Text color
+                      backgroundColor: Color(0xffF98866),
+                      foregroundColor: Colors.white,
                       padding:
                           EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                       textStyle: GoogleFonts.publicSans(
@@ -180,9 +196,19 @@ class _EmailpageState extends State<Emailpage> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    child: Text('Sign In'),
+                    child: _isLoading
+                        ? SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text('Sign In'),
                   ),
-                ),
+                )
               ],
             ),
           ),

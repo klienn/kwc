@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart'; // Import GoogleSignIn
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore import
 import 'package:kwc_app/models/user.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 /// Static room codes for each meter
 const Map<String, String> meterToRoomCode = {
@@ -28,6 +29,16 @@ class AuthService {
     return auth.authStateChanges().map(_userFromFirebaseUser);
   }
 
+  Future<void> updateUserFcmToken(String uid) async {
+    final fcmToken = await FirebaseMessaging.instance.getToken();
+    print('fcm token:$fcmToken');
+    if (fcmToken != null) {
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'fcmToken': fcmToken,
+      });
+    }
+  }
+
   // Sign in anonymously
   Future signInAnon() async {
     try {
@@ -46,6 +57,9 @@ class AuthService {
       UserCredential result = await auth.signInWithEmailAndPassword(
           email: email, password: password);
       User? u = result.user;
+
+      await updateUserFcmToken(u!.uid);
+
       return _userFromFirebaseUser(u);
     } catch (e) {
       print(e.toString());
@@ -101,6 +115,8 @@ class AuthService {
         'meterName': meterName,
         'role': 'user',
       });
+
+      await updateUserFcmToken(user.uid);
 
       return _userFromFirebaseUser(user);
     } catch (e) {

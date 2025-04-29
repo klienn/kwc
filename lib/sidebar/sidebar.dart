@@ -98,103 +98,105 @@ class _SideBarState extends State<SideBar>
             children: <Widget>[
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  color: const Color(0xffF98866),
-                  child: Column(
-                    children: <Widget>[
-                      SizedBox(height: 100),
-                      ListTile(
-                        title: Text(
-                          "Pol123",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 30,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          "Cipolletti Ceniza Jipos",
-                          style: TextStyle(
-                              color: Color(0xffF54914),
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800),
-                        ),
-                        leading: CircleAvatar(
-                          radius: 50,
-                          child: Icon(
-                            Icons.perm_identity,
-                            color: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    color: const Color(0xffF98866),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: <Widget>[
+                          SizedBox(height: 100),
+                          ListTile(
+                            title: Text(
+                              "Pol123",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(
+                              "Cipolletti Ceniza Jipos",
+                              style: TextStyle(
+                                  color: Color(0xffF54914),
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800),
+                            ),
+                            leading: CircleAvatar(
+                              radius: 50,
+                              child: Icon(
+                                Icons.perm_identity,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      Divider(
-                        height: 64,
-                        thickness: 0.5,
-                        color: Colors.white.withOpacity(0.3),
-                        indent: 32,
-                        endIndent: 32,
-                      ),
-                      userRole == 'admin'
-                          ? MenuItem(
-                              icon: Icons.dashboard,
-                              title: "Admin Dashboard",
-                              onTap: () {
-                                onIconPressed();
-                                BlocProvider.of<NavigationBloc>(context).add(
-                                    NavigationEvents
-                                        .adminDashboardClickedEvent);
-                              },
-                            )
-                          : MenuItem(
-                              icon: Icons.home,
-                              title: "Home",
+                          Divider(
+                            height: 32,
+                            thickness: 0.5,
+                            color: Colors.white.withOpacity(0.3),
+                            indent: 32,
+                            endIndent: 32,
+                          ),
+                          userRole == 'admin'
+                              ? MenuItem(
+                                  icon: Icons.dashboard,
+                                  title: "Admin Dashboard",
+                                  onTap: () {
+                                    onIconPressed();
+                                    BlocProvider.of<NavigationBloc>(context)
+                                        .add(NavigationEvents
+                                            .adminDashboardClickedEvent);
+                                  },
+                                )
+                              : MenuItem(
+                                  icon: Icons.home,
+                                  title: "Home",
+                                  onTap: () {
+                                    onIconPressed();
+                                    BlocProvider.of<NavigationBloc>(context)
+                                        .add(NavigationEvents
+                                            .homePageClickedEvent);
+                                  },
+                                ),
+                          MenuItem(
+                              icon: Icons.payment,
+                              title: "Payment",
                               onTap: () {
                                 onIconPressed();
                                 BlocProvider.of<NavigationBloc>(context)
-                                    .add(NavigationEvents.homePageClickedEvent);
-                              },
-                            ),
-                      MenuItem(
-                          icon: Icons.payment,
-                          title: "Payment",
-                          onTap: () {
-                            onIconPressed();
-                            BlocProvider.of<NavigationBloc>(context)
-                                .add(NavigationEvents.paymentClickedEvent);
-                          }),
-                      MenuItem(
-                          icon: Icons.notifications,
-                          title: "Notification",
-                          onTap: () {
-                            onIconPressed();
-                            BlocProvider.of<NavigationBloc>(context)
-                                .add(NavigationEvents.notificationClickedEvent);
-                          }),
-                      Divider(
-                        height: 64,
-                        thickness: 0.5,
-                        color: Colors.white.withOpacity(0.3),
-                        indent: 32,
-                        endIndent: 32,
+                                    .add(NavigationEvents.paymentClickedEvent);
+                              }),
+                          MenuItem(
+                              icon: Icons.notifications,
+                              title: "Notification",
+                              onTap: () {
+                                onIconPressed();
+                                BlocProvider.of<NavigationBloc>(context).add(
+                                    NavigationEvents.notificationClickedEvent);
+                              }),
+                          Divider(
+                            height: 64,
+                            thickness: 0.5,
+                            color: Colors.white.withOpacity(0.3),
+                            indent: 32,
+                            endIndent: 32,
+                          ),
+                          MenuItem(
+                              icon: Icons.settings,
+                              title: "Settings",
+                              onTap: () {
+                                onIconPressed();
+                                BlocProvider.of<NavigationBloc>(context)
+                                    .add(NavigationEvents.settingsClickedEvent);
+                              }),
+                          MenuItem(
+                              icon: Icons.logout,
+                              title: "Logout",
+                              onTap: () {
+                                onIconPressed();
+                                BlocProvider.of<NavigationBloc>(context)
+                                    .add(NavigationEvents.logoutClickedEvent);
+                              }),
+                        ],
                       ),
-                      MenuItem(
-                          icon: Icons.settings,
-                          title: "Settings",
-                          onTap: () {
-                            onIconPressed();
-                            BlocProvider.of<NavigationBloc>(context)
-                                .add(NavigationEvents.settingsClickedEvent);
-                          }),
-                      MenuItem(
-                          icon: Icons.logout,
-                          title: "Logout",
-                          onTap: () {
-                            onIconPressed();
-                            BlocProvider.of<NavigationBloc>(context)
-                                .add(NavigationEvents.logoutClickedEvent);
-                          }),
-                    ],
-                  ),
-                ),
+                    )),
               ),
               Align(
                 alignment: Alignment(0, -0.9),

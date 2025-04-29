@@ -18,6 +18,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _roomCodeController = TextEditingController();
 
   bool _isObscure = true; // To control password visibility
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -127,39 +128,44 @@ class _RegisterPageState extends State<RegisterPage> {
                 SizedBox(height: 30),
                 Center(
                   child: ElevatedButton(
-                    onPressed: () async {
-                      if (_formKey.currentState!.validate()) {
-                        String email = _emailController.text.trim();
-                        String password = _passwordController.text.trim();
-                        String roomCode = _roomCodeController.text.trim();
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            if (_formKey.currentState!.validate()) {
+                              String email = _emailController.text.trim();
+                              String password = _passwordController.text.trim();
+                              String roomCode = _roomCodeController.text.trim();
 
-                        try {
-                          await _auth.registerWithEmailAndPassword(
-                              email, password, roomCode);
+                              try {
+                                await _auth.registerWithEmailAndPassword(
+                                    email, password, roomCode);
 
-                          // If we get here, registration succeeded
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Registration successful!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => SidebarLayout()),
-                          );
-                        } catch (e) {
-                          // Display the error message from the thrown exception
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(e.toString()),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      }
-                    },
+                                // If we get here, registration succeeded
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Registration successful!'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => SidebarLayout()),
+                                );
+                              } catch (e) {
+                                // Display the error message from the thrown exception
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(e.toString()),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              } finally {
+                                // Always reset loading state after attempt
+                                if (mounted) setState(() => _isLoading = false);
+                              }
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xffF98866),
                       foregroundColor: Colors.white,
@@ -170,7 +176,17 @@ class _RegisterPageState extends State<RegisterPage> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    child: Text('Register'),
+                    child: _isLoading
+                        ? SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text('Register'),
                   ),
                 ),
               ],
