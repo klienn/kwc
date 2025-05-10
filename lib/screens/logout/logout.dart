@@ -70,7 +70,7 @@ class Logout extends StatelessWidget implements NavigationStates {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: Text("Confirm Logout"),
           content: Text("Are you sure you want to logout?"),
@@ -78,29 +78,22 @@ class Logout extends StatelessWidget implements NavigationStates {
             TextButton(
               child: Text("Yes"),
               onPressed: () async {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(dialogContext).pop(); // Close dialog safely
 
-                // Make sure the widget context is still valid before performing navigation
-                if (context.mounted) {
-                  // Use post-frame callback to ensure safe navigation
-                  WidgetsBinding.instance.addPostFrameCallback((_) async {
-                    // Handle logout logic here, e.g., signing out
-                    await auth.signOut();
+                await auth.signOut();
 
-                    // Use Navigator.pushReplacement to replace the current screen and clear the navigation stack
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => Wrapper()),
-                      (route) => false, // Removes all previous routes
-                    );
-                  });
-                }
+                // Perform navigation immediately using the root context
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => Wrapper()),
+                  (route) => false,
+                );
               },
             ),
             TextButton(
               child: Text("No"),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(dialogContext).pop(); // Just close dialog
               },
             ),
           ],

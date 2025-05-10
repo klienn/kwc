@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kwc_app/services/auth.dart';
-import 'package:kwc_app/sidebar/sidebar_layout.dart'; // Import SidebarLayout
+import 'package:kwc_app/screens/wrapper.dart'; // ✅ Import Wrapper
 
 class Emailpage extends StatefulWidget {
   @override
@@ -9,16 +9,14 @@ class Emailpage extends StatefulWidget {
 }
 
 class _EmailpageState extends State<Emailpage> {
-  // Variables to control password visibility and remember me checkbox
   bool _isObscure = true;
   bool _rememberMe = false;
   bool _isLoading = false;
 
-  // Controllers for capturing input
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  final AuthService _auth = AuthService(); // Create an instance of AuthService
+  final AuthService _auth = AuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +121,7 @@ class _EmailpageState extends State<Emailpage> {
                     ),
                     TextButton(
                       onPressed: () {
-                        // Implement forgot password functionality here
+                        // TODO: implement forgot password
                       },
                       child: Text(
                         'Forgot Password?',
@@ -167,11 +165,12 @@ class _EmailpageState extends State<Emailpage> {
                                   ),
                                 );
 
-                                // Navigate to SidebarLayout after successful sign-in
-                                Navigator.pushReplacement(
+                                // ✅ Clear stack and go through Wrapper
+                                Navigator.pushAndRemoveUntil(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) => SidebarLayout()),
+                                      builder: (context) => Wrapper()),
+                                  (route) => false,
                                 );
                               }
                             } catch (e) {
@@ -182,7 +181,6 @@ class _EmailpageState extends State<Emailpage> {
                                 ),
                               );
                             } finally {
-                              // Always reset loading state after attempt
                               if (mounted) setState(() => _isLoading = false);
                             }
                           },

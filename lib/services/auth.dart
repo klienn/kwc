@@ -3,6 +3,7 @@ import 'package:google_sign_in/google_sign_in.dart'; // Import GoogleSignIn
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore import
 import 'package:kwc_app/models/user.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 /// Static room codes for each meter
 const Map<String, String> meterToRoomCode = {
@@ -106,12 +107,32 @@ class AuthService {
       User? user = result.user;
       if (user == null) return null;
 
+      double latestEnergy = 0;
+
+      try {
+        final meterSnap = await FirebaseDatabase.instance
+            .ref("meterData/$meterName")
+            .orderByKey()
+            .limitToLast(1)
+            .get();
+
+        if (meterSnap.exists) {
+          final last = meterSnap.children.last;
+          final energy = last.child("totalEnergy").value;
+          if (energy is num) {
+            latestEnergy = energy.toDouble();
+          }
+        }
+      } catch (e) {
+        print("Error fetching totalEnergy from RTDB: $e");
+      }
+
       // 4. Create Firestore doc with the required fields
       await firestore.collection('users').doc(user.uid).set({
         'active': true,
         'transactions': [],
         'balance': 0,
-        'lastTotalEnergy': 0,
+        'lastTotalEnergy': latestEnergy,
         'meterName': meterName,
         'role': 'user',
       });
