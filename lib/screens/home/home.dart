@@ -125,7 +125,7 @@ class _HomeState extends State<Home> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'Your Balance: ₱${balance.toString()}',
+                  'Your Balance: ₱${balance.toStringAsFixed(2)}',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                       fontSize: 20, fontWeight: FontWeight.w500),
